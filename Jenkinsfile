@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     environment {
+        DOCKER_ID = "shabbyalaei"
         DOCKER_IMAGE = "jenkins-simple-test"
         CONTAINER_NAME = "jenkins-simple-container"
         APP_PORT = "8081"
@@ -12,7 +13,7 @@ pipeline {
         stage('Environment Variables') {
             steps {
                 echo "Build number: ${env.BUILD_NUMBER}"
-                echo "Docker image: ${env.DOCKER_IMAGE}"
+                echo "Docker repository: ${env.DOCKER_ID}/${env.DOCKER_IMAGE}"
                 echo "Image tag: ${env.IMAGE_TAG}"
                 echo "Application port: ${env.APP_PORT}"
             }
@@ -23,12 +24,13 @@ pipeline {
                 echo 'Repository was downloaded successfully'
             }
         }
-        stage('Credential Test') {
-        environment {
-            MY_SECRET = credentials('DEMO_SECRET')
-        }
 
-        steps {
+        stage('Credential Test') {
+            environment {
+                MY_SECRET = credentials('DEMO_SECRET')
+            }
+
+            steps {
                 sh '''
                     if [ -n "$MY_SECRET" ]; then
                         echo "Credential was loaded successfully"
@@ -44,7 +46,7 @@ pipeline {
             steps {
                 sh '''
                     docker build \
-                      -t $DOCKER_IMAGE:$IMAGE_TAG \
+                      -t $DOCKER_ID/$DOCKER_IMAGE:$IMAGE_TAG \
                       .
                 '''
             }
@@ -58,7 +60,7 @@ pipeline {
                     docker run -d \
                       --name $CONTAINER_NAME \
                       -p $APP_PORT:80 \
-                      $DOCKER_IMAGE:$IMAGE_TAG
+                      $DOCKER_ID/$DOCKER_IMAGE:$IMAGE_TAG
                 '''
             }
         }
@@ -68,6 +70,26 @@ pipeline {
                 sh '''
                     sleep 3
                     curl -f http://localhost:$APP_PORT
+                '''
+            }
+        }
+
+        stage('Docker Push') {
+            environment {
+                DOCKER_CREDS = credentials('DOCKER_HUB_CREDENTIALS')
+            }
+
+            steps {
+                sh '''
+                    echo "$DOCKER_CREDS_PSW" | \
+                      docker login \
+                      -u "$DOCKER_CREDS_USR" \
+                      --password-stdin
+
+                    docker push \
+                      $DOCKER_ID/$DOCKER_IMAGE:$IMAGE_TAG
+
+                    docker logout
                 '''
             }
         }
