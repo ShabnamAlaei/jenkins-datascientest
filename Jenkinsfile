@@ -23,6 +23,22 @@ pipeline {
                 echo 'Repository was downloaded successfully'
             }
         }
+        stage('Credential Test') {
+        environment {
+            MY_SECRET = credentials('DEMO_SECRET')
+        }
+
+        steps {
+                sh '''
+                    if [ -n "$MY_SECRET" ]; then
+                        echo "Credential was loaded successfully"
+                    else
+                        echo "Credential is empty"
+                        exit 1
+                    fi
+                '''
+            }
+        }
 
         stage('Docker Build') {
             steps {
