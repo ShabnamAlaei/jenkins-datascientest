@@ -136,6 +136,78 @@ pipeline {
                 '''
             }
         }
+
+        stage('Deploy Staging') {
+    environment {
+        KUBECONFIG_SECRET = credentials('KUBECONFIG_FILE')
+    }
+
+    steps {
+        sh '''
+            set -e
+
+            mkdir -p .kube
+            cp "$KUBECONFIG_SECRET" .kube/config
+            chmod 600 .kube/config
+
+            cp jenkins-simple/values.yaml values-staging.yaml
+
+            sed -i \
+              "s|^[[:space:]]*tag:.*|  tag: \\"$IMAGE_TAG\\"|" \
+              values-staging.yaml
+
+            helm upgrade --install app jenkins-simple \
+              --values values-staging.yaml \
+              --namespace staging \
+              --create-namespace \
+              --kubeconfig .kube/config
+
+            kubectl rollout status \
+              deployment/app-jenkins-simple \
+              --namespace staging \
+              --timeout=120s \
+              --kubeconfig .kube/config
+        '''
+    }
+}
+stage('Deploy Production') {
+    environment {
+        KUBECONFIG_SECRET = credentials('KUBECONFIG_FILE')
+    }
+
+    steps {
+        timeout(time: 15, unit: 'MINUTES') {
+            input message: 'Deploy to production?', ok: 'Yes'
+        }
+
+        sh '''
+            set -e
+
+            mkdir -p .kube
+            cp "$KUBECONFIG_SECRET" .kube/config
+            chmod 600 .kube/config
+
+            cp jenkins-simple/values.yaml values-prod.yaml
+
+            sed -i \
+              "s|^[[:space:]]*tag:.*|  tag: \\"$IMAGE_TAG\\"|" \
+              values-prod.yaml
+
+            helm upgrade --install app jenkins-simple \
+              --values values-prod.yaml \
+              --namespace prod \
+              --create-namespace \
+              --kubeconfig .kube/config
+
+            kubectl rollout status \
+              deployment/app-jenkins-simple \
+              --namespace prod \
+              --timeout=120s \
+              --kubeconfig .kube/config
+        '''
+    }
+}
+
     }
 
     post {
