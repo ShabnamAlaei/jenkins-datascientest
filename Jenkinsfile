@@ -93,7 +93,7 @@ pipeline {
                 '''
             }
         }
-    }
+
         stage('Deploy Dev') {
             environment {
                 KUBECONFIG_SECRET = credentials('KUBECONFIG_FILE')
@@ -110,8 +110,8 @@ pipeline {
                     cp jenkins-simple/values.yaml values-dev.yaml
 
                     sed -i \
-                    "s|^[[:space:]]*tag:.*|  tag: \\"$IMAGE_TAG\\"|" \
-                    values-dev.yaml
+                      "s|^[[:space:]]*tag:.*|  tag: \\"$IMAGE_TAG\\"|" \
+                      values-dev.yaml
 
                     echo "Deploying image:"
                     grep -A 4 "^image:" values-dev.yaml
@@ -119,23 +119,24 @@ pipeline {
                     helm lint jenkins-simple
 
                     helm upgrade --install app jenkins-simple \
-                    --values values-dev.yaml \
-                    --namespace dev \
-                    --create-namespace \
-                    --kubeconfig .kube/config
+                      --values values-dev.yaml \
+                      --namespace dev \
+                      --create-namespace \
+                      --kubeconfig .kube/config
 
                     kubectl get pods \
-                    --namespace dev \
-                    --kubeconfig .kube/config
+                      --namespace dev \
+                      --kubeconfig .kube/config
 
                     kubectl rollout status \
-                    deployment/app-jenkins-simple \
-                    --namespace dev \
-                    --timeout=120s \
-                    --kubeconfig .kube/config
+                      deployment/app-jenkins-simple \
+                      --namespace dev \
+                      --timeout=120s \
+                      --kubeconfig .kube/config
                 '''
             }
         }
+    }
 
     post {
         success {
